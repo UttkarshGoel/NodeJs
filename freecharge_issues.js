@@ -20,7 +20,7 @@ var connection = mysql.createConnection(db_config, function(err,res){
 var asyncTasks = [];
 var OrderIDs = [];
 
-if(process.argv[2] == "withdraw"){	
+if(process.argv[2] == "withdraw"){
 	asyncTasks.push(orderIdPusher.bind(null));
 	asyncTasks.push(getWithdrawMoneyData.bind(null, OrderIDs));
 }
@@ -45,14 +45,15 @@ function orderIdPusher(callback){
 
 
 function getWithdrawMoneyData(OrderIDs){
-	var sqlQuery = "SELECT p.order_id, u.jugnoo_autos_user_id as user_id, u.user_name, u.phone_no, u.user_email, p.txn_amount, " +
-								 "date_format(p.req_logged_on, '%Y-%m-%d %H:%i:%S') as req_logged_on, p.resp_txn_id, p.status, p.resp_bank_txn_id,  p.resp_txn_amount, " +
-								 "IF((p.resp_respcode ='01'),'INR',null) as resp_currency, "+
-								 "p.resp_status, p.resp_respcode, p.resp_respmsg, p.resp_bankname as resp_gatewayname, p.resp_paymentmode " +
-								 "FROM jugnoo_auth.tb_paytm_wallet_withdraw_money_txns as p JOIN jugnoo_auth.tb_users as u on p.cust_id = u.user_id WHERE order_id IN (?) ";
+	var sqlQuery = "SELECT f.order_id, u.jugnoo_autos_user_id as user_id, " +
+                   "u.user_name, u.phone_no, u.user_email, f.amount, " +
+                   "date_format( f.created_at, '%Y-%m-%d %H:%i:%S' ) as req_logged_on, " +
+                   "f.response_data, f.response_status " +
+                   "FROM jugnoo_auth.tb_freecharge_withdraw_money_txns as f " +
+                   "JOIN jugnoo_auth.tb_users as u " +
+                   "ON f.user_id = u.user_id WHERE f.order_id IN (?)";
 
 	var queryConnection = connection.query(sqlQuery, [OrderIDs], function(qerr, qres){
-            console.log(queryConnection.sql);
             if(qerr){
 				console.log(qerr);
 				return console.log("Query execution error");
@@ -60,30 +61,27 @@ function getWithdrawMoneyData(OrderIDs){
 			if(qres.length == 0){
 				return console.log("No result found");
 			}
-			var data = JSON.stringify(qres);
-			var result = data.replace(/,/g, "\n").replace(/"/g, " ").replace(/}/g, "\n").replace(/{/g, "");
-			console.log(result);
-	});
-}
-
-	
-function getAddMoneyData(OrderIDs){
-	var sqlQuery = "SELECT p.order_id, u.jugnoo_autos_user_id as user_id, u.user_name, u.phone_no, u.user_email, p.txn_amount, " +
-								 "date_format(p.req_logged_on, '%Y-%m-%d %H:%i:%S') as req_logged_on, p.resp_txn_id, p.status, p.resp_bank_txn_id,  p.resp_txn_amount, " +
-								 "IF((p.resp_respcode ='01'),'INR',null) as resp_currency, "+
-								 "p.resp_status, p.resp_respcode, p.resp_respmsg, p.resp_bankname as resp_gatewayname, p.resp_paymentmode " +
-								 "FROM jugnoo_auth.tb_paytm_wallet_add_money_txns as p JOIN jugnoo_auth.tb_users as u on p.cust_id = u.user_id WHERE order_id IN (?) ";
-
-	var queryConnection = connection.query(sqlQuery, [OrderIDs], function(qerr, qres){
-			if(qerr){
-				console.log(qerr);
-				return console.log("Query execution error");
-			}
-			if(qres.length == 0){
-				return console.log("No result found");
-			}
-			var data = JSON.stringify(qres);
-			var result = data.replace(/,/g, "\n").replace(/"/g, " ").replace(/}/g, "\n").replace(/{/g, "");
-			console.log(result);
+            var resObj = {};
+            for(var i = 0; i < qres.length; i++){
+                var data = JSON.parse(qres[i].response_data);
+                resObj = {
+                    "order_id"       : qres[i].order_id,
+                    "user_id"        : qres[i].user_id,
+                    "user_name"      : qres[i].user_name,
+                    "phone_no"       : qres[i].phone_name,
+                    "user_email"     : qres[i].user_email,
+                    "amount"         : qres[i].amount,
+                    "req_logged_on"  : qres[i].req_logged_on,
+                    "response_status": qres[i].response_status,
+                    "errorMessage"   : qres[i].errorMessage,
+                    "errorCode"      : data.errorCode,
+                    "merchantTxnId"  : data.merchantTxnId,
+                    "metadata"       : data.metadata,
+                    "status"         : data.status,
+                    "txnId"          : data.txnId
+                };
+                console.log(resObj);
+                console.log("\n");
+            }
 	});
 }
