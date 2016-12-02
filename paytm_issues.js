@@ -52,7 +52,6 @@ function getWithdrawMoneyData(OrderIDs){
 								 "FROM jugnoo_auth.tb_paytm_wallet_withdraw_money_txns as p JOIN jugnoo_auth.tb_users as u on p.cust_id = u.user_id WHERE order_id IN (?) ";
 
 	var queryConnection = connection.query(sqlQuery, [OrderIDs], function(qerr, qres){
-            console.log(queryConnection.sql);
             if(qerr){
 				console.log(qerr);
 				return console.log("Query execution error");
